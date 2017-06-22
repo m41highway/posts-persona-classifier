@@ -1,0 +1,22 @@
+{
+  "name": "posts-persona-classifier",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/m41highway/posts-persona-classifier.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/m41highway/posts-persona-classifier/issues"
+  },
+  "homepage": "https://github.com/m41highway/posts-persona-classifier#readme",
+  "dependencies": {
+    "find-hashtags": "^1.0.1"
+  }
+}
