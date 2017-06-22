@@ -17,6 +17,7 @@
   },
   "homepage": "https://github.com/m41highway/posts-persona-classifier#readme",
   "dependencies": {
-    "find-hashtags": "^1.0.1"
+    "find-hashtags": "^1.0.1",
+    "natural": "^0.5.3"
   }
 }
