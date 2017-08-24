@@ -4,6 +4,7 @@ const fbTestUser = require('./lib/FacebookTestUsers');
 const config = require('./config');
 const findHashtags = require('find-hashtags');
 const natural = require('natural');
+const fetch = require('node-fetch');
 const TfIdf = natural.TfIdf;
 const tfidf = new TfIdf();
 const getLoaderPromoise = require('./lib/knowledge-loader').getLoaderPromoise;
@@ -42,6 +43,26 @@ function run () {
         yield Promise.each(users, co.wrap(function* (u) {
             console.log(`Processing ${u.facebook_account} ...`);
             let posts = yield fbTestUser.getPosts(config.facebook.appId, config.facebook.appToken, u.facebook_account)
+
+            let userAlbums = yield fbTestUser.getAlbums(config.facebook.appId, config.facebook.appToken, u.facebook_account)
+
+            // console.log('albums>>', userAlbums);
+
+            let userPhotos = [];
+            yield Promise.each(userAlbums.albums.data, co.wrap(function* (album){
+                let photoUrl = `https://graph.facebook.com/${album.id}/photos?fields=id,album,name,images,link,from,target&access_token=${userAlbums.user.access_token}`;
+                let photosRes = yield fetch(photoUrl);
+                let photoJson = yield photosRes.json();
+
+                yield Promise.each(photoJson.data, co.wrap(function* (i){
+                    if (i.album.name === 'Timeline Photos') {
+                        userPhotos.push(i.images[0].source)
+                    }
+                }))
+            }));
+
+            console.log('User Photo-->', userPhotos);
+
 
             userPostList.push({
                 'idx': u.idx,
