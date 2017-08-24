@@ -19,6 +19,7 @@
   "dependencies": {
     "find-hashtags": "^1.0.1",
     "jslint": "^0.11.0",
-    "natural": "^0.5.3"
+    "natural": "^0.5.3",
+    "node-fetch": "^1.7.2"
   }
 }
