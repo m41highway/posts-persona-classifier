@@ -9,11 +9,27 @@ const TfIdf = natural.TfIdf;
 const tfidf = new TfIdf();
 const getLoaderPromoise = require('./lib/knowledge-loader').getLoaderPromoise;
 
+const gcloud = require('gcloud')({
+    keyFilename: 'gcloud-key.json',
+    projectId: '116615115031846874813'
+});
+
+var vision = gcloud.vision();
+
 // ---------------------------------
 // Get testing data
 // ---------------------------------
 const users = require('./test').data;
 
+function detectLabels(image, types, callback) {
+    if (callback) return vision.detectLabels(image, types, callback);
+    return new Promise((resolve, reject) => {
+        vision.detectLabels(image, types, (err, detections, apiResponse) => {
+            if (err) return reject(err);
+            return resolve(detections);
+        });
+    });
+}
 
 function run () {
     // ---------------------------------------
@@ -42,13 +58,19 @@ function run () {
         // ------------------------
         yield Promise.each(users, co.wrap(function* (u) {
             console.log(`Processing ${u.facebook_account} ...`);
+
+            // -------------------------------
+            // 2. Get user Posts
+            // -------------------------------
             let posts = yield fbTestUser.getPosts(config.facebook.appId, config.facebook.appToken, u.facebook_account)
 
+            // -------------------------------
+            // 3. Get user photos
+            // -------------------------------
             let userAlbums = yield fbTestUser.getAlbums(config.facebook.appId, config.facebook.appToken, u.facebook_account)
-
-            // console.log('albums>>', userAlbums);
-
             let userPhotos = [];
+            let tagsPredictedFromPhotos = '';
+
             yield Promise.each(userAlbums.albums.data, co.wrap(function* (album){
                 let photoUrl = `https://graph.facebook.com/${album.id}/photos?fields=id,album,name,images,link,from,target&access_token=${userAlbums.user.access_token}`;
                 let photosRes = yield fetch(photoUrl);
@@ -61,13 +83,17 @@ function run () {
                 }))
             }));
 
-            console.log('User Photo-->', userPhotos);
-
+            yield Promise.each(userPhotos, co.wrap(function* (userPhoto){
+                yield detectLabels(userPhoto, ['labels']).then((detections) => {
+                    tagsPredictedFromPhotos = tagsPredictedFromPhotos + detections.slice(0, detections.length-1).join(' ') + ' ';
+                })
+            }))
 
             userPostList.push({
                 'idx': u.idx,
                 'userId': u.facebook_account,
                 'posts': posts,
+                'photoTags': tagsPredictedFromPhotos,
                 'justification': u.justification
             })
             tfidf.addDocument(posts ? posts : '');
@@ -78,13 +104,17 @@ function run () {
         // by concatenating the:
         // 1. important keywords based on statistics (TF/IDF)
         // 2. hashtags created by the user
+        // 3. tags detected from user photos
         // --------------------------------------------------------------------
         let prettyResult = [];
 
         yield Promise.each(userPostList, co.wrap(function* (u){
             let allWords = tfidf.listTerms(u.idx);
             let importantWords= allWords.slice(0, Math.round(config.facebook.threshold * allWords.length));
-            let keywords = importantWords.map(function (w) { return w.term }).join(' ') + findHashtags(u.posts).join(' ');
+            let keywords = importantWords.map(function (w) { return w.term }).join(' ') + findHashtags(u.posts).join(' ') + u.photoTags;
+
+            // console.log('---------- keywords ---------');
+            // console.log(keywords);
 
             if (keywords) {
                 let prediction = classifier.getClassifications(keywords);
